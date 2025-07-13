@@ -9,7 +9,7 @@ services:
       - DATABASE_URL=postgresql://bbs_user:bbs_password@db:5432/bbs_db
     volumes:
       - .:/app
-    
+
   db:
     image: postgres:15.10
     environment:
@@ -20,6 +20,13 @@ services:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+
+  adminer:
+    image: adminer:4.8.0
+    ports:
+      - "8081:8080"
+    depends_on:
+      - db
 
 volumes:
   postgres_data:
