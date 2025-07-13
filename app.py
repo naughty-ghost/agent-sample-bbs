@@ -3,7 +3,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import psycopg2
 import re
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'  # Required for flash messages
@@ -41,6 +41,18 @@ def init_db():
             )
         ''')
         
+        # Create posts table if it doesn't exist
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS posts (
+                post_id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+                title VARCHAR(255) NOT NULL,
+                content TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
         conn.commit()
         cur.close()
         conn.close()
@@ -56,7 +68,30 @@ init_db()
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    # Get posts from database for timeline
+    conn = get_db_connection()
+    posts = []
+    
+    if conn:
+        try:
+            cur = conn.cursor()
+            # Get posts with user information, ordered by newest first
+            cur.execute('''
+                SELECT p.post_id, p.title, p.content, p.created_at, u.username
+                FROM posts p
+                JOIN users u ON p.user_id = u.user_id
+                ORDER BY p.created_at DESC
+            ''')
+            posts = cur.fetchall()
+            cur.close()
+            conn.close()
+        except psycopg2.Error as e:
+            print(f"Database error: {e}")
+            if conn:
+                cur.close()
+                conn.close()
+    
+    return render_template('index.html', posts=posts, timedelta=timedelta)
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
@@ -196,6 +231,73 @@ def signin():
             return render_template('signin.html', username=username)
     
     return render_template('signin.html')
+
+@app.route('/signout')
+def signout():
+    session.clear()
+    flash('サインアウトしました。', 'success')
+    return redirect(url_for('index'))
+
+@app.route('/post', methods=['GET', 'POST'])
+def post():
+    # Check if user is signed in
+    if 'user_id' not in session:
+        flash('投稿するにはサインインが必要です。', 'error')
+        return redirect(url_for('signin'))
+    
+    if request.method == 'POST':
+        title = request.form.get('title', '').strip()
+        content = request.form.get('content', '').strip()
+        
+        # Validation
+        errors = []
+        
+        if not title:
+            errors.append('タイトルは必須です。')
+        elif len(title) > 255:
+            errors.append('タイトルは255文字以下で入力してください。')
+        
+        if not content:
+            errors.append('内容は必須です。')
+        
+        if errors:
+            for error in errors:
+                flash(error, 'error')
+            return render_template('post.html', title=title, content=content)
+        
+        # Save post to database
+        conn = get_db_connection()
+        if conn is None:
+            flash('データベース接続エラーが発生しました。', 'error')
+            return render_template('post.html', title=title, content=content)
+        
+        try:
+            cur = conn.cursor()
+            
+            # Insert post into database
+            cur.execute('''
+                INSERT INTO posts (user_id, title, content, created_at, updated_at)
+                VALUES (%s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ''', (session['user_id'], title, content))
+            
+            conn.commit()
+            cur.close()
+            conn.close()
+            
+            flash('投稿が完了しました。', 'success')
+            return redirect(url_for('index'))
+            
+        except psycopg2.Error as e:
+            if conn:
+                conn.rollback()
+                cur.close()
+                conn.close()
+            
+            print(f"Database error: {e}")
+            flash('投稿中にエラーが発生しました。', 'error')
+            return render_template('post.html', title=title, content=content)
+    
+    return render_template('post.html')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
