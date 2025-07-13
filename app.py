@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, session
 from werkzeug.security import generate_password_hash, check_password_hash
 import psycopg2
 import re
@@ -144,6 +144,58 @@ def signup():
             return render_template('signup.html', username=username, email=email)
     
     return render_template('signup.html')
+
+@app.route('/signin', methods=['GET', 'POST'])
+def signin():
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        
+        # Validation
+        if not username:
+            flash('ユーザー名は必須です。', 'error')
+            return render_template('signin.html', username=username)
+        
+        if not password:
+            flash('パスワードは必須です。', 'error')
+            return render_template('signin.html', username=username)
+        
+        # Authenticate user
+        conn = get_db_connection()
+        if conn is None:
+            flash('データベース接続エラーが発生しました。', 'error')
+            return render_template('signin.html', username=username)
+        
+        try:
+            cur = conn.cursor()
+            
+            # Get user from database
+            cur.execute('SELECT user_id, username, password_hash FROM users WHERE username = %s', (username,))
+            user = cur.fetchone()
+            
+            cur.close()
+            conn.close()
+            
+            if user and check_password_hash(user[2], password):
+                # Successful authentication
+                session['user_id'] = user[0]
+                session['username'] = user[1]
+                flash(f'サインインしました。ようこそ {username} さん！', 'success')
+                return redirect(url_for('index'))
+            else:
+                flash('ユーザー名またはパスワードが正しくありません。', 'error')
+                return render_template('signin.html', username=username)
+                
+        except psycopg2.Error as e:
+            if conn:
+                cur.close()
+                conn.close()
+            
+            print(f"Database error: {e}")
+            flash('サインイン中にエラーが発生しました。', 'error')
+            return render_template('signin.html', username=username)
+    
+    return render_template('signin.html')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
