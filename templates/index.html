@@ -164,7 +164,7 @@
                 <div class="post-item">
                     <div class="post-title">{{ post[1] }}</div>
                     <div class="post-meta">
-                        投稿者: {{ post[4] }} | 投稿日時: {{ post[3].strftime('%Y年%m月%d日 %H:%M') }}
+                        投稿者: {{ post[4] }} | 投稿日時: <span class="timestamp" data-utc="{{ post[3].isoformat() }}">{{ post[3].strftime('%Y年%m月%d日 %H:%M') }}</span>
                     </div>
                     <div class="post-content">{{ post[2] }}</div>
                 </div>
@@ -173,5 +173,29 @@
             <div class="no-posts">投稿がありません</div>
         {% endif %}
     </div>
+
+    <script>
+        // Convert UTC timestamps to user's local timezone
+        document.addEventListener('DOMContentLoaded', function() {
+            const timestampElements = document.querySelectorAll('.timestamp');
+            
+            timestampElements.forEach(function(element) {
+                const utcTime = element.getAttribute('data-utc');
+                if (utcTime) {
+                    const date = new Date(utcTime);
+                    
+                    // Format in Japanese style with user's local timezone
+                    const year = date.getFullYear();
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const day = String(date.getDate()).padStart(2, '0');
+                    const hours = String(date.getHours()).padStart(2, '0');
+                    const minutes = String(date.getMinutes()).padStart(2, '0');
+                    
+                    const formattedTime = `${year}年${month}月${day}日 ${hours}:${minutes}`;
+                    element.textContent = formattedTime;
+                }
+            });
+        });
+    </script>
 </body>
 </html>
