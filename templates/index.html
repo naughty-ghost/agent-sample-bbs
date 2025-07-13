@@ -17,11 +17,48 @@
         .welcome {
             font-size: 18px;
             color: #666;
+            margin-bottom: 30px;
+        }
+        .signup-btn {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 16px;
+            display: inline-block;
+            transition: background-color 0.3s;
+        }
+        .signup-btn:hover {
+            background-color: #0056b3;
+        }
+        .flash-messages {
+            margin-bottom: 20px;
+        }
+        .flash-success {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            border: 1px solid #c3e6cb;
         }
     </style>
 </head>
 <body>
     <h1>掲示板</h1>
+    
+    <div class="flash-messages">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+    
     <p class="welcome">掲示板へようこそ</p>
+    <a href="/signup" class="signup-btn">サインアップ</a>
 </body>
 </html>
