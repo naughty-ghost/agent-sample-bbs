@@ -3,7 +3,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import psycopg2
 import re
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'  # Required for flash messages
@@ -91,7 +91,7 @@ def index():
                 cur.close()
                 conn.close()
     
-    return render_template('index.html', posts=posts)
+    return render_template('index.html', posts=posts, timedelta=timedelta)
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
